@@ -8,6 +8,7 @@
 #include <QLabel>
 #include <QVBoxLayout>
 #include <QMouseEvent>
+#include <QMenu>
 
 OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE("obs-floating-recorder", "en-US")
@@ -50,6 +51,7 @@ public:
             "    color: white; "
             "    padding: 5px; "
             "    background-color: transparent;"
+            "    font-size: 11px;"
             "}"
             "QPushButton {"
             "    background-color: #555;"
@@ -58,6 +60,7 @@ public:
             "    color: white;"
             "    padding: 5px;"
             "    margin: 1px;"
+            "    font-size: 10px;"
             "}"
             "QPushButton:hover { background-color: #666; }"
             "QPushButton:pressed { background-color: #777; }"
@@ -73,6 +76,15 @@ public:
         QTimer *timer = new QTimer(this);
         connect(timer, &QTimer::timeout, this, &SimpleFloatingWindow::updateStatus);
         timer->start(1000);
+        
+        // 添加上下文菜单
+        setContextMenuPolicy(Qt::CustomContextMenu);
+        connect(this, &QWidget::customContextMenuRequested, [this](const QPoint &pos) {
+            QMenu menu(this);
+            QAction *closeAction = menu.addAction("关闭");
+            connect(closeAction, &QAction::triggered, this, &QWidget::close);
+            menu.exec(mapToGlobal(pos));
+        });
         
         updateStatus();
     }
@@ -208,5 +220,5 @@ const char *obs_module_description(void)
     return "全局置顶的录制控制悬浮窗";
 }
 
-// 移除这行：不需要手动包含moc文件
-// #include "floating-recorder-plugin.moc"
+// 添加moc包含
+#include "floating-recorder-plugin.moc"
