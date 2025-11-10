@@ -25,10 +25,13 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
-# 添加插件源文件
-add_library(obs-floating-recorder MODULE
+# 添加插件源文件 - 使用变量以便后续处理
+set(SOURCES
     src/floating-recorder-plugin.cpp
 )
+
+# 创建插件目标
+add_library(obs-floating-recorder MODULE ${SOURCES})
 
 # 包含目录
 target_include_directories(obs-floating-recorder PRIVATE
@@ -78,4 +81,5 @@ endif()
 set_target_properties(obs-floating-recorder PROPERTIES
     PREFIX ""
     SUFFIX ".dll"
+    AUTOMOC ON
 )
