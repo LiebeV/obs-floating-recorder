@@ -48,6 +48,9 @@ jobs:
         cmake .. `
           -G "Ninja" `
           -DCMAKE_BUILD_TYPE=Release `
+          -DCMAKE_AUTOMOC=ON `
+          -DCMAKE_AUTORCC=ON `
+          -DCMAKE_AUTOUIC=ON `
           -DOBS_INSTALL_PATH="${{ github.workspace }}/obs-install/obs-studio" `
           -DOBS_INCLUDE_DIR="${{ github.workspace }}/obs-src/obs-studio-28.1.2/libobs" `
           -DOBS_FRONTEND_INCLUDE_DIR="${{ github.workspace }}/obs-src/obs-studio-28.1.2/UI/obs-frontend-api" `
