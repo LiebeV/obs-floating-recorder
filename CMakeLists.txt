@@ -11,16 +11,25 @@ find_package(Qt5 COMPONENTS Widgets Core REQUIRED)
 set(OBS_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/obs-src/obs-studio-28.1.2/libobs")
 set(OBS_FRONTEND_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/obs-src/obs-studio-28.1.2/UI/obs-frontend-api")
 
+# 设置UI文件
+set(UI_FILES src/floating-window.ui)
+
 # 添加插件源文件
 add_library(obs-floating-recorder MODULE
     src/floating-recorder-plugin.cpp
     src/floating-window.cpp
     src/floating-window.h
+    ${UI_FILES}
 )
 
-# 自动处理Qt的moc
+# 自动处理Qt的moc和ui文件
 qt5_wrap_cpp(MOC_SOURCES src/floating-window.h)
-target_sources(obs-floating-recorder PRIVATE ${MOC_SOURCES})
+qt5_wrap_ui(UI_HEADERS ${UI_FILES})
+
+target_sources(obs-floating-recorder PRIVATE 
+    ${MOC_SOURCES}
+    ${UI_HEADERS}
+)
 
 # 包含目录
 target_include_directories(obs-floating-recorder PRIVATE
@@ -54,13 +63,3 @@ set_target_properties(obs-floating-recorder PROPERTIES
     PREFIX ""
     SUFFIX ".dll"
 )
-
-# 安装后复制依赖的DLL
-if(WIN32)
-    add_custom_command(TARGET obs-floating-recorder POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "${CMAKE_SOURCE_DIR}/deps/bin/*.dll"
-            $<TARGET_FILE_DIR:obs-floating-recorder>
-        COMMENT "Copying OBS dependency DLLs"
-    )
-endif()
