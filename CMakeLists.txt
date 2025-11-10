@@ -20,15 +20,15 @@ set(OBS_FRONTEND_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/obs-src/obs-studio-28.1.2/UI/o
 message(STATUS "OBS Library Path: ${OBS_LIBRARY_PATH}")
 message(STATUS "OBS Include Dir: ${OBS_INCLUDE_DIR}")
 
+# 设置自动moc
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTORCC ON)
+set(CMAKE_AUTOUIC ON)
+
 # 添加插件源文件
 add_library(obs-floating-recorder MODULE
     src/floating-recorder-plugin.cpp
-    src/floating-window.cpp
 )
-
-# 自动处理Qt的moc
-qt5_wrap_cpp(MOC_SOURCES src/floating-window.h)
-target_sources(obs-floating-recorder PRIVATE ${MOC_SOURCES})
 
 # 包含目录
 target_include_directories(obs-floating-recorder PRIVATE
@@ -38,7 +38,7 @@ target_include_directories(obs-floating-recorder PRIVATE
     ${CMAKE_CURRENT_BINARY_DIR}
 )
 
-# 链接库 - 使用动态链接
+# 链接库
 target_link_libraries(obs-floating-recorder
     Qt5::Widgets
     Qt5::Core
