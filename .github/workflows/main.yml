@@ -20,18 +20,21 @@ jobs:
       run: |
         # 安装构建工具
         choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System' -y
-        choco install 7zip ninja -y
+        choco install 7zip ninja git -y
         
         # 下载OBS Studio开发包（包含.lib文件）
-        curl -L -o obs-deps.zip https://github.com/obsproject/obs-deps/releases/download/2022-08-02/win-deps-2022-08-02-x64.zip
+        curl -L -o obs-deps.zip "https://github.com/obsproject/obs-deps/releases/download/2022-08-02/win-deps-2022-08-02-x64.zip"
         7z x obs-deps.zip -o"obs-deps" -y
         
-        # 下载OBS Studio源码
-        curl -L -o obs-src.zip https://github.com/obsproject/obs-studio/archive/refs/tags/28.1.2.zip
-        7z x obs-src.zip -o"obs-src" -y
+        # 克隆OBS Studio源码（替代下载ZIP）
+        git clone --depth 1 --branch 28.1.2 https://github.com/obsproject/obs-studio.git obs-src
         
-        # 下载预编译的OBS（用于运行时DLL）
-        curl -L -o obs-studio.zip https://github.com/obsproject/obs-studio/releases/download/28.1.2/obs-studio-28.1.2-windows-x64.zip
+        # 下载预编译的OBS Studio（使用正确的链接）
+        curl -L -o obs-studio.zip "https://cdn-fastly.obsproject.com/downloads/obs-studio-28.1.2-windows-x64.zip"
+        if (!(Test-Path obs-studio.zip) -or (Get-Item obs-studio.zip).Length -lt 1000000) {
+            # 如果主链接失败，使用备用链接
+            curl -L -o obs-studio.zip "https://github.com/obsproject/obs-studio/releases/download/28.1.2/obs-studio-28.1.2-windows-x64.zip"
+        }
         7z x obs-studio.zip -o"obs-install" -y
 
     - name: Setup Qt
@@ -40,6 +43,13 @@ jobs:
         version: '5.15.2'
         arch: 'win64_msvc2019_64'
         install-deps: true
+
+    - name: Verify downloaded files
+      run: |
+        echo "Checking downloaded files..."
+        dir obs-deps /s
+        dir obs-src /s
+        dir obs-install /s
 
     - name: Create build directory
       run: mkdir build
@@ -55,8 +65,8 @@ jobs:
           -DCMAKE_AUTOMOC=ON `
           -DOBS_DEPS_PATH="${{ github.workspace }}/obs-deps" `
           -DOBS_INSTALL_PATH="${{ github.workspace }}/obs-install/obs-studio" `
-          -DOBS_INCLUDE_DIR="${{ github.workspace }}/obs-src/obs-studio-28.1.2/libobs" `
-          -DOBS_FRONTEND_INCLUDE_DIR="${{ github.workspace }}/obs-src/obs-studio-28.1.2/UI/obs-frontend-api" `
+          -DOBS_INCLUDE_DIR="${{ github.workspace }}/obs-src/libobs" `
+          -DOBS_FRONTEND_INCLUDE_DIR="${{ github.workspace }}/obs-src/UI/obs-frontend-api" `
           -DQt5_DIR="${{ env.Qt5_DIR }}"
 
     - name: Build plugin
