@@ -40,7 +40,7 @@ jobs:
           libqt5widgets5
 
     - name: Install OBS Studio (Windows)
-      if: matrix.os == 'windows-2019'
+      if: startsWith(matrix.os, 'windows')
       run: |
         # 下载预编译的OBS开发包
         curl -L -o obs-deps.zip https://github.com/obsproject/obs-deps/releases/download/2022-08-02/win-deps-2022-08-02-x64.zip
@@ -63,7 +63,7 @@ jobs:
           -DQt5_DIR=/usr/lib/x86_64-linux-gnu/cmake/Qt5
 
     - name: Configure CMake (Windows)
-      if: matrix.os == 'windows-2019'
+      if: startsWith(matrix.os, 'windows')
       working-directory: ${{ matrix.build_dir }}
       run: |
         cmake .. \
