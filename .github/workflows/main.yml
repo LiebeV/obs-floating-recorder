@@ -9,101 +9,77 @@ on:
     types: [ published ]
 
 jobs:
-  build:
-    strategy:
-      matrix:
-        os: [ubuntu-20.04, windows-2019]
-        include:
-          - os: ubuntu-20.04
-            artifact_name: obs-floating-recorder.so
-            build_dir: build_linux
-          - os: windows-2022
-            artifact_name: obs-floating-recorder.dll
-            build_dir: build_windows
-
-    runs-on: ${{ matrix.os }}
+  build-windows:
+    runs-on: windows-2022
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Install OBS Studio (Linux)
-      if: matrix.os == 'ubuntu-20.04'
+    - name: Install dependencies
       run: |
-        sudo apt-get update
-        sudo apt-get install -y \
-          cmake \
-          build-essential \
-          libobs-dev \
-          qtbase5-dev \
-          qtbase5-private-dev \
-          libqt5widgets5
-
-    - name: Install OBS Studio (Windows)
-      if: startsWith(matrix.os, 'windows')
-      run: |
-        # 下载预编译的OBS开发包
+        # 安装构建工具
+        choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System' -y
+        choco install 7zip -y
+        
+        # 下载OBS Studio开发包
         curl -L -o obs-deps.zip https://github.com/obsproject/obs-deps/releases/download/2022-08-02/win-deps-2022-08-02-x64.zip
-        7z x obs-deps.zip -o"deps"
+        7z x obs-deps.zip -o"deps" -y
         
         # 下载OBS Studio源码（用于头文件）
-        curl -L -o obs-studio.zip https://github.com/obsproject/obs-studio/archive/refs/tags/28.0.0.zip
-        7z x obs-studio.zip
+        curl -L -o obs-studio.zip https://github.com/obsproject/obs-studio/archive/refs/tags/28.1.2.zip
+        7z x obs-studio.zip -o"obs-src" -y
+        
+        # 下载Qt5 (使用较新的版本)
+        curl -L -o qt-installer.exe https://download.qt.io/official_releases/online_installers/qt-unified-windows-x64-online.exe
+
+    - name: Setup Qt
+      uses: jurplel/install-qt-action@v3
+      with:
+        version: '5.15.2'
+        arch: 'win64_msvc2019_64'
+        install-deps: true
 
     - name: Create build directory
-      run: mkdir ${{ matrix.build_dir }}
+      run: mkdir build
 
-    - name: Configure CMake (Linux)
-      if: matrix.os == 'ubuntu-20.04'
-      working-directory: ${{ matrix.build_dir }}
+    - name: Configure CMake
+      working-directory: build
+      env:
+        Qt5_DIR: ${{ env.Qt5_DIR }}
       run: |
-        cmake .. \
-          -DCMAKE_BUILD_TYPE=Release \
-          -DOBS_INCLUDE_DIR=/usr/include/obs \
-          -DQt5_DIR=/usr/lib/x86_64-linux-gnu/cmake/Qt5
-
-    - name: Configure CMake (Windows)
-      if: startsWith(matrix.os, 'windows')
-      working-directory: ${{ matrix.build_dir }}
-      run: |
-        cmake .. \
-          -DCMAKE_BUILD_TYPE=Release \
-          -DOBS_INCLUDE_DIR="${{ github.workspace }}/obs-studio-28.0.0/libobs" \
-          -DOBS_FRONTEND_INCLUDE_DIR="${{ github.workspace }}/obs-studio-28.0.0/UI/obs-frontend-api" \
-          -DCMAKE_PREFIX_PATH="${{ github.workspace }}/deps" \
-          -DQt5_DIR="${{ github.workspace }}/deps/cmake/Qt5"
+        cmake .. `
+          -DCMAKE_BUILD_TYPE=Release `
+          -DOBS_INCLUDE_DIR="${{ github.workspace }}/obs-src/obs-studio-28.1.2/libobs" `
+          -DOBS_FRONTEND_INCLUDE_DIR="${{ github.workspace }}/obs-src/obs-studio-28.1.2/UI/obs-frontend-api" `
+          -DCMAKE_PREFIX_PATH="${{ github.workspace }}/deps" `
+          -DQt5_DIR="${{ env.Qt5_DIR }}"
 
     - name: Build plugin
-      working-directory: ${{ matrix.build_dir }}
+      working-directory: build
       run: cmake --build . --config Release
+
+    - name: List build artifacts
+      working-directory: build
+      run: dir
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
-        name: ${{ matrix.artifact_name }}-${{ matrix.os }}
-        path: ${{ matrix.build_dir }}/*.${{ matrix.os == 'ubuntu-20.04' && 'so' || 'dll' }}
+        name: obs-floating-recorder
+        path: build/Release/obs-floating-recorder.dll
         if-no-files-found: error
 
   create-release:
-    needs: build
+    needs: build-windows
     if: github.event_name == 'release'
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     
     steps:
-    - name: Download all artifacts
+    - name: Download artifact
       uses: actions/download-artifact@v4
       
-    - name: Display structure of downloaded files
-      run: ls -R
-      
-    - name: Create Release Assets
-      run: |
-        mkdir release_assets
-        find . -name '*.so' -exec cp {} release_assets/ \;
-        find . -name '*.dll' -exec cp {} release_assets/ \;
-        ls -la release_assets/
-        
     - name: Upload Release Assets
       uses: softprops/action-gh-release@v1
       with:
-        files: release_assets/*
+        files: obs-floating-recorder.dll
