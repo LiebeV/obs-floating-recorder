@@ -1,41 +1,6 @@
 #ifndef FLOATING_WINDOW_H
 #define FLOATING_WINDOW_H
 
-#include <QWidget>
-#include <QTimer>
-#include <QMouseEvent>
-
-namespace Ui {
-class FloatingWindow;
-}
-
-class FloatingWindow : public QWidget
-{
-    Q_OBJECT
-
-public:
-    explicit FloatingWindow(QWidget *parent = nullptr);
-    ~FloatingWindow();
-
-protected:
-    void mousePressEvent(QMouseEvent *event) override;
-    void mouseMoveEvent(QMouseEvent *event) override;
-    void mouseReleaseEvent(QMouseEvent *event) override;
-
-private slots:
-    void updateRecordingStatus();
-    void onRecordButtonClicked();
-    void onPauseButtonClicked();
-    void onStopButtonClicked();
-
-private:
-    Ui::FloatingWindow *ui;
-    QTimer *statusTimer;
-    QPoint dragPosition;
-    bool isDragging;
-    
-    void updateUI();
-    QString formatTime(int seconds);
-};
+// 暂时为空，因为我们使用简化版本
 
 #endif // FLOATING_WINDOW_H
