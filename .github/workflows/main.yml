@@ -22,13 +22,17 @@ jobs:
         choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System' -y
         choco install 7zip ninja -y
         
-        # 下载预编译的OBS Studio（包含开发文件）
-        curl -L -o obs-studio.zip https://github.com/obsproject/obs-studio/releases/download/28.1.2/obs-studio-28.1.2-windows-x64.zip
-        7z x obs-studio.zip -o"obs-install" -y
+        # 下载OBS Studio开发包（包含.lib文件）
+        curl -L -o obs-deps.zip https://github.com/obsproject/obs-deps/releases/download/2022-08-02/win-deps-2022-08-02-x64.zip
+        7z x obs-deps.zip -o"obs-deps" -y
         
-        # 下载OBS Studio源码（用于头文件）
+        # 下载OBS Studio源码
         curl -L -o obs-src.zip https://github.com/obsproject/obs-studio/archive/refs/tags/28.1.2.zip
         7z x obs-src.zip -o"obs-src" -y
+        
+        # 下载预编译的OBS（用于运行时DLL）
+        curl -L -o obs-studio.zip https://github.com/obsproject/obs-studio/releases/download/28.1.2/obs-studio-28.1.2-windows-x64.zip
+        7z x obs-studio.zip -o"obs-install" -y
 
     - name: Setup Qt
       uses: jurplel/install-qt-action@v3
@@ -49,8 +53,7 @@ jobs:
           -G "Ninja" `
           -DCMAKE_BUILD_TYPE=Release `
           -DCMAKE_AUTOMOC=ON `
-          -DCMAKE_AUTORCC=ON `
-          -DCMAKE_AUTOUIC=ON `
+          -DOBS_DEPS_PATH="${{ github.workspace }}/obs-deps" `
           -DOBS_INSTALL_PATH="${{ github.workspace }}/obs-install/obs-studio" `
           -DOBS_INCLUDE_DIR="${{ github.workspace }}/obs-src/obs-studio-28.1.2/libobs" `
           -DOBS_FRONTEND_INCLUDE_DIR="${{ github.workspace }}/obs-src/obs-studio-28.1.2/UI/obs-frontend-api" `
