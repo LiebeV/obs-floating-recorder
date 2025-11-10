@@ -7,6 +7,7 @@
 #include <QPushButton>
 #include <QLabel>
 #include <QVBoxLayout>
+#include <QMouseEvent>
 
 OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE("obs-floating-recorder", "en-US")
@@ -26,34 +27,47 @@ public:
         auto *layout = new QVBoxLayout(this);
         statusLabel = new QLabel("OBS控制面板", this);
         recordButton = new QPushButton("开始录制", this);
+        pauseButton = new QPushButton("暂停", this);
+        stopButton = new QPushButton("停止", this);
         
         layout->addWidget(statusLabel);
         layout->addWidget(recordButton);
+        layout->addWidget(pauseButton);
+        layout->addWidget(stopButton);
         
         setLayout(layout);
-        resize(150, 80);
+        resize(150, 120);
         
         // 设置样式
         setStyleSheet(
-            "SimpleFloatingWindow {"
+            "QWidget {"
             "    background-color: rgba(40, 40, 40, 200);"
             "    border: 1px solid #555;"
             "    border-radius: 8px;"
             "    color: white;"
             "}"
-            "QLabel { color: white; padding: 5px; }"
+            "QLabel { "
+            "    color: white; "
+            "    padding: 5px; "
+            "    background-color: transparent;"
+            "}"
             "QPushButton {"
             "    background-color: #555;"
             "    border: none;"
             "    border-radius: 4px;"
             "    color: white;"
             "    padding: 5px;"
+            "    margin: 1px;"
             "}"
             "QPushButton:hover { background-color: #666; }"
+            "QPushButton:pressed { background-color: #777; }"
+            "QPushButton:disabled { background-color: #333; color: #777; }"
         );
         
         // 连接信号
         connect(recordButton, &QPushButton::clicked, this, &SimpleFloatingWindow::toggleRecording);
+        connect(pauseButton, &QPushButton::clicked, this, &SimpleFloatingWindow::togglePause);
+        connect(stopButton, &QPushButton::clicked, this, &SimpleFloatingWindow::stopRecording);
         
         // 更新状态定时器
         QTimer *timer = new QTimer(this);
@@ -74,14 +88,48 @@ private slots:
         updateStatus();
     }
     
-    void updateStatus()
+    void togglePause()
     {
         if (obs_frontend_recording_active()) {
-            statusLabel->setText("录制中...");
-            recordButton->setText("停止录制");
-        } else {
+            bool paused = obs_frontend_recording_paused();
+            obs_frontend_recording_pause(!paused);
+        }
+        updateStatus();
+    }
+    
+    void stopRecording()
+    {
+        if (obs_frontend_recording_active()) {
+            obs_frontend_recording_stop();
+        }
+        updateStatus();
+    }
+    
+    void updateStatus()
+    {
+        bool isRecording = obs_frontend_recording_active();
+        bool isPaused = obs_frontend_recording_paused();
+        
+        if (!isRecording) {
             statusLabel->setText("未录制");
+            statusLabel->setStyleSheet("color: gray;");
             recordButton->setText("开始录制");
+            pauseButton->setEnabled(false);
+            stopButton->setEnabled(false);
+        } else if (isPaused) {
+            statusLabel->setText("已暂停");
+            statusLabel->setStyleSheet("color: orange;");
+            recordButton->setText("继续录制");
+            pauseButton->setText("继续");
+            pauseButton->setEnabled(true);
+            stopButton->setEnabled(true);
+        } else {
+            statusLabel->setText("录制中");
+            statusLabel->setStyleSheet("color: #ff4444;");
+            recordButton->setText("停止录制");
+            pauseButton->setText("暂停");
+            pauseButton->setEnabled(true);
+            stopButton->setEnabled(true);
         }
     }
 
@@ -105,6 +153,8 @@ protected:
 private:
     QLabel *statusLabel;
     QPushButton *recordButton;
+    QPushButton *pauseButton;
+    QPushButton *stopButton;
     QPoint dragPosition;
 };
 
@@ -126,7 +176,13 @@ bool obs_module_load(void)
     
     QObject::connect(toggleAction, &QAction::triggered, []() {
         if (floatingWindow) {
-            floatingWindow->setVisible(!floatingWindow->isVisible());
+            bool visible = floatingWindow->isVisible();
+            if (visible) {
+                floatingWindow->hide();
+            } else {
+                floatingWindow->show();
+                floatingWindow->raise();
+            }
         }
     });
     
@@ -152,4 +208,5 @@ const char *obs_module_description(void)
     return "全局置顶的录制控制悬浮窗";
 }
 
-#include "floating-recorder-plugin.moc"
+// 移除这行：不需要手动包含moc文件
+// #include "floating-recorder-plugin.moc"
