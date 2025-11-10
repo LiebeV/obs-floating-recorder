@@ -1,0 +1,109 @@
+name: Build OBS Floating Recorder Plugin
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  release:
+    types: [ published ]
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-20.04, windows-2019]
+        include:
+          - os: ubuntu-20.04
+            artifact_name: obs-floating-recorder.so
+            build_dir: build_linux
+          - os: windows-2019
+            artifact_name: obs-floating-recorder.dll
+            build_dir: build_windows
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install OBS Studio (Linux)
+      if: matrix.os == 'ubuntu-20.04'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          cmake \
+          build-essential \
+          libobs-dev \
+          qtbase5-dev \
+          qtbase5-private-dev \
+          libqt5widgets5
+
+    - name: Install OBS Studio (Windows)
+      if: matrix.os == 'windows-2019'
+      run: |
+        # 下载预编译的OBS开发包
+        curl -L -o obs-deps.zip https://github.com/obsproject/obs-deps/releases/download/2022-08-02/win-deps-2022-08-02-x64.zip
+        7z x obs-deps.zip -o"deps"
+        
+        # 下载OBS Studio源码（用于头文件）
+        curl -L -o obs-studio.zip https://github.com/obsproject/obs-studio/archive/refs/tags/28.0.0.zip
+        7z x obs-studio.zip
+
+    - name: Create build directory
+      run: mkdir ${{ matrix.build_dir }}
+
+    - name: Configure CMake (Linux)
+      if: matrix.os == 'ubuntu-20.04'
+      working-directory: ${{ matrix.build_dir }}
+      run: |
+        cmake .. \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DOBS_INCLUDE_DIR=/usr/include/obs \
+          -DQt5_DIR=/usr/lib/x86_64-linux-gnu/cmake/Qt5
+
+    - name: Configure CMake (Windows)
+      if: matrix.os == 'windows-2019'
+      working-directory: ${{ matrix.build_dir }}
+      run: |
+        cmake .. \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DOBS_INCLUDE_DIR="${{ github.workspace }}/obs-studio-28.0.0/libobs" \
+          -DOBS_FRONTEND_INCLUDE_DIR="${{ github.workspace }}/obs-studio-28.0.0/UI/obs-frontend-api" \
+          -DCMAKE_PREFIX_PATH="${{ github.workspace }}/deps" \
+          -DQt5_DIR="${{ github.workspace }}/deps/cmake/Qt5"
+
+    - name: Build plugin
+      working-directory: ${{ matrix.build_dir }}
+      run: cmake --build . --config Release
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.artifact_name }}-${{ matrix.os }}
+        path: ${{ matrix.build_dir }}/*.${{ matrix.os == 'ubuntu-20.04' && 'so' || 'dll' }}
+        if-no-files-found: error
+
+  create-release:
+    needs: build
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      
+    - name: Display structure of downloaded files
+      run: ls -R
+      
+    - name: Create Release Assets
+      run: |
+        mkdir release_assets
+        find . -name '*.so' -exec cp {} release_assets/ \;
+        find . -name '*.dll' -exec cp {} release_assets/ \;
+        ls -la release_assets/
+        
+    - name: Upload Release Assets
+      uses: softprops/action-gh-release@v1
+      with:
+        files: release_assets/*
