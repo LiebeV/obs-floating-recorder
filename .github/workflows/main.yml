@@ -20,18 +20,15 @@ jobs:
       run: |
         # 安装构建工具
         choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System' -y
-        choco install 7zip -y
+        choco install 7zip ninja -y
         
-        # 下载OBS Studio开发包
-        curl -L -o obs-deps.zip https://github.com/obsproject/obs-deps/releases/download/2022-08-02/win-deps-2022-08-02-x64.zip
-        7z x obs-deps.zip -o"deps" -y
+        # 下载预编译的OBS Studio（包含开发文件）
+        curl -L -o obs-studio.zip https://github.com/obsproject/obs-studio/releases/download/28.1.2/obs-studio-28.1.2-windows-x64.zip
+        7z x obs-studio.zip -o"obs-install" -y
         
         # 下载OBS Studio源码（用于头文件）
-        curl -L -o obs-studio.zip https://github.com/obsproject/obs-studio/archive/refs/tags/28.1.2.zip
-        7z x obs-studio.zip -o"obs-src" -y
-        
-        # 下载Qt5 (使用较新的版本)
-        curl -L -o qt-installer.exe https://download.qt.io/official_releases/online_installers/qt-unified-windows-x64-online.exe
+        curl -L -o obs-src.zip https://github.com/obsproject/obs-studio/archive/refs/tags/28.1.2.zip
+        7z x obs-src.zip -o"obs-src" -y
 
     - name: Setup Qt
       uses: jurplel/install-qt-action@v3
@@ -49,10 +46,11 @@ jobs:
         Qt5_DIR: ${{ env.Qt5_DIR }}
       run: |
         cmake .. `
+          -G "Ninja" `
           -DCMAKE_BUILD_TYPE=Release `
+          -DOBS_INSTALL_PATH="${{ github.workspace }}/obs-install/obs-studio" `
           -DOBS_INCLUDE_DIR="${{ github.workspace }}/obs-src/obs-studio-28.1.2/libobs" `
           -DOBS_FRONTEND_INCLUDE_DIR="${{ github.workspace }}/obs-src/obs-studio-28.1.2/UI/obs-frontend-api" `
-          -DCMAKE_PREFIX_PATH="${{ github.workspace }}/deps" `
           -DQt5_DIR="${{ env.Qt5_DIR }}"
 
     - name: Build plugin
@@ -67,19 +65,5 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: obs-floating-recorder
-        path: build/Release/obs-floating-recorder.dll
+        path: build/obs-floating-recorder.dll
         if-no-files-found: error
-
-  create-release:
-    needs: build-windows
-    if: github.event_name == 'release'
-    runs-on: windows-latest
-    
-    steps:
-    - name: Download artifact
-      uses: actions/download-artifact@v4
-      
-    - name: Upload Release Assets
-      uses: softprops/action-gh-release@v1
-      with:
-        files: obs-floating-recorder.dll
